@@ -79,6 +79,8 @@ def register_order(request):
     phonenumber = order_info.get('phonenumber', '').strip()
 
     products_info = order_info.get('products', [])
+    if not isinstance(products_info, list) or not products_info:
+        return Response({'error': 'Неверный формат json. Ключ products пуст/не указан либо не является list.'}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
     order = Order.objects.create(
         name=firstname,
@@ -103,7 +105,6 @@ def register_order(request):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.AllowAny])
 def model_response_order(request):
     if request.method == 'GET':
         order = Order.objects.all()
