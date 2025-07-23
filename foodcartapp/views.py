@@ -2,9 +2,14 @@ import json
 
 from django.http import JsonResponse
 from django.templatetags.static import static
-from pprint import pprint
 
 from .models import Product, Order, OrderProducts
+from .serializers import OrderSerializer
+
+from rest_framework import generics, permissions, status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from pprint import pprint
 
 
 def banners_list_api(request):
@@ -59,16 +64,21 @@ def product_list_api(request):
     })
 
 
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
 def register_order(request):
-    data = json.loads(request.body.decode())
-    pprint(data)
+    if not request.data:
+        return Response({'error': 'Пустое тело запроса'}, status=status.HTTP_400_BAD_REQUEST)
 
-    address = data.get('address', '').strip()
-    firstname = data.get('firstname', '').strip()
-    lastname = data.get('lastname', '').strip()
-    phonenumber = data.get('phonenumber', '').strip()
+    order_info = request.data
+    pprint(order_info)
 
-    products_info = data.get('products', [])
+    address = order_info.get('address', '').strip()
+    firstname = order_info.get('firstname', '').strip()
+    lastname = order_info.get('lastname', '').strip()
+    phonenumber = order_info.get('phonenumber', '').strip()
+
+    products_info = order_info.get('products', [])
 
     order = Order.objects.create(
         name=firstname,
@@ -89,4 +99,13 @@ def register_order(request):
             quantity=quantity
         )
 
-    return JsonResponse({})
+    return Response({'status': 'success'})
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def model_response_order(request):
+    if request.method == 'GET':
+        order = Order.objects.all()
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
