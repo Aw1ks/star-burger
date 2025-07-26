@@ -11,6 +11,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
+from rest_framework.renderers import JSONRenderer
 from pprint import pprint
 
 
@@ -69,23 +70,26 @@ def product_list_api(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def register_order(request):
-    pprint(request.data)
+    order_info = request.data
+    pprint(order_info)
 
-    serializer = OrderSerializer(data=request.data)
+    serializer = OrderSerializer(data=order_info)
     serializer.is_valid(raise_exception=True)
 
     order = Order.objects.create(
-        firstname=str(request.data['firstname']),
-        lastname=str(request.data['lastname']),
-        phonenumber=str(request.data['phonenumber']),
-        address=str(request.data['address']),
+        firstname=str(order_info['firstname']),
+        lastname=str(order_info['lastname']),
+        phonenumber=str(order_info['phonenumber']),
+        address=str(order_info['address']),
     )
 
     order_product_fields = serializer.validated_data['products']
     order_product = [OrderProducts(order=order, **fields) for fields in order_product_fields]
     OrderProducts.objects.bulk_create(order_product)
 
-    return Response({'status': 'success'})
+    serialized_info = serializer.data
+    serialized_info['id'] = order.id
+    return Response(serialized_info)
 
 
 @api_view(['GET'])

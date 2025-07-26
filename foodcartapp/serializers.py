@@ -13,7 +13,8 @@ class OrderProductsSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     products = ListField(
         child = OrderProductsSerializer(),
-        allow_empty=False
+        allow_empty=False,
+        write_only=True
     )
 
     class Meta:
