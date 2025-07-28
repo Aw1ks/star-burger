@@ -9,6 +9,9 @@ from .models import Restaurant
 from .models import RestaurantMenuItem
 from .models import Order, OrderProducts
 
+from django import forms
+from django.core.exceptions import ValidationError
+
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
@@ -107,10 +110,35 @@ class ProductAdmin(admin.ModelAdmin):
     pass
 
 
+class OrderProductsForm(forms.ModelForm):
+    class Meta:
+        model = OrderProducts
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_info = super().clean()
+        product = cleaned_info.get('product')
+        order = cleaned_info.get('order')
+
+        if product and order:
+            try:
+                cleaned_info['price'] = product.price
+            except RestaurantMenuItem.DoesNotExist:
+                raise ValidationError(f"Нет товара {product.name}")
+        return cleaned_info
+
 class OrderProductsInline(admin.TabularInline):
     model = OrderProducts
     extra = 1
+    form = OrderProductsForm
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderProductsInline]
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in instances:
+            obj.save()
+        formset.save_m2m()
+

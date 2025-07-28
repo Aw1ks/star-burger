@@ -113,6 +113,13 @@ class RestaurantMenuItem(models.Model):
         default=True,
         db_index=True
     )
+    price = models.DecimalField(
+        'цена',
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=0
+    )
 
     class Meta:
         verbose_name = 'пункт меню ресторана'
@@ -128,7 +135,7 @@ class RestaurantMenuItem(models.Model):
 class OrderQuerySet(models.QuerySet):
     def with_total_price(self):
         return self.annotate(
-            total_price=Sum(F('orderproducts__quantity') * F('orderproducts__product__price'))
+            total_price=Sum(F('orderproducts__quantity') * F('orderproducts__price'))
         )
 
 class Order(models.Model):
@@ -175,6 +182,13 @@ class OrderProducts(models.Model):
             MinValueValidator(0), 
             MaxValueValidator(10000)
         ]
+    )
+    price = models.DecimalField(
+        'цена',
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=0
     )
 
     def __str__(self):
