@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.renderers import JSONRenderer
 from pprint import pprint
+from django.db import transaction
 
 
 def banners_list_api(request):
@@ -69,27 +70,36 @@ def product_list_api(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
+@transaction.atomic 
 def register_order(request):
     order_info = request.data
     pprint(order_info)
 
     serializer = OrderSerializer(data=order_info)
-    serializer.is_valid(raise_exception=True)
+    if serializer.is_valid():
+        try:
+            order = Order.objects.create(
+                firstname=serializer.validated_data['firstname'],
+                lastname=serializer.validated_data['lastname'],
+                phonenumber=serializer.validated_data['phonenumber'],
+                address=serializer.validated_data['address'],
+            )
 
-    order = Order.objects.create(
-        firstname=str(order_info['firstname']),
-        lastname=str(order_info['lastname']),
-        phonenumber=str(order_info['phonenumber']),
-        address=str(order_info['address']),
-    )
+            order_product_fields = serializer.validated_data['products']
+            order_product = [OrderProducts(order=order, **fields) for fields in order_product_fields]
+            OrderProducts.objects.bulk_create(order_product)
 
-    order_product_fields = serializer.validated_data['products']
-    order_product = [OrderProducts(order=order, **fields) for fields in order_product_fields]
-    OrderProducts.objects.bulk_create(order_product)
+            serialized_info = serializer.data
+            serialized_info['id'] = order.id
 
-    serialized_info = serializer.data
-    serialized_info['id'] = order.id
-    return Response(serialized_info)
+            return Response(serialized_info, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print(f"Error in transaction: {e}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
