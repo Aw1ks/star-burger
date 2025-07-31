@@ -158,8 +158,26 @@ class Order(models.Model):
         blank=False,
     )
 
-    objects = OrderQuerySet.as_manager()
+    ORDER_STATUS = [
+        ('U', "Необработанный"),
+        ('S', "Собирается"),
+        ('D', "В пути"),
+        ('V', 'Выполнен')
+    ]
 
+    status = models.CharField(
+        'Статус заказа',
+        max_length=1,
+        choices=ORDER_STATUS,
+        default='U',
+        db_index=True
+    )
+
+    def get_status_display(self):
+        return dict(self.ORDER_STATUS).get(self.status)
+
+    objects = OrderQuerySet.as_manager()
+    
     class Meta:
         verbose_name = "Заказ"
 

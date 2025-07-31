@@ -97,6 +97,7 @@ def view_orders(request):
     order_items = []
     for order in orders_with_total:
         order_id = order.id
+        status = order.get_status_display()
         client = f"{order.firstname} {order.lastname}"
         phonenumber = order.phonenumber
         address = order.address
@@ -104,6 +105,7 @@ def view_orders(request):
 
         order_item = {
             'id': order_id,
+            'status': status,
             'client': client,
             'phonenumber': phonenumber,
             'address': address,
