@@ -198,8 +198,25 @@ class Order(models.Model):
         db_index=True
     )
 
+    PAYMENT_METHODS = [
+        ('C', 'Наличными'),
+        ('E', 'Электронный'),
+        ('K', 'Катртой'),
+    ]
+
+    payment_method = models.CharField(
+        'Способ оплаты',
+        max_length=1,
+        choices=PAYMENT_METHODS,
+        default='C',
+        db_index=True
+    )
+
     def get_status_display(self):
         return dict(self.ORDER_STATUS).get(self.status)
+
+    def get_payment_method_display(self):
+        return dict(self.PAYMENT_METHODS).get(self.payment_method)
 
     objects = OrderQuerySet.as_manager()
     
