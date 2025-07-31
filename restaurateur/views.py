@@ -102,6 +102,7 @@ def view_orders(request):
         phonenumber = order.phonenumber
         address = order.address
         order_cost = order.total_price
+        order_comment = order.comment_from_manager
 
         order_item = {
             'id': order_id,
@@ -110,6 +111,7 @@ def view_orders(request):
             'phonenumber': phonenumber,
             'address': address,
             'order_cost': order_cost,
+            'comment': order_comment,
         }
 
         order_items.append(order_item)

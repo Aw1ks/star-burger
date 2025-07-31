@@ -173,6 +173,12 @@ class Order(models.Model):
         db_index=True
     )
 
+    comment_from_manager = models.TextField(
+        'Комментарий менеджера',
+        max_length=200,
+        blank=True
+    )
+
     def get_status_display(self):
         return dict(self.ORDER_STATUS).get(self.status)
 
