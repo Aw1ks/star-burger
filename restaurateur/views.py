@@ -1,3 +1,7 @@
+import requests
+
+from geopy import distance
+
 from django import forms
 from django.shortcuts import redirect, render
 from django.views import View
@@ -6,7 +10,7 @@ from django.contrib.auth.decorators import user_passes_test
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
-
+from django.conf import settings
 
 from foodcartapp.models import Product, Restaurant, Order, OrderProducts
 
@@ -90,40 +94,109 @@ def view_restaurants(request):
     })
 
 
+def fetch_coordinates(apikey, address):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    response = requests.get(base_url, params={
+        "geocode": address,
+        "apikey": apikey,
+        "format": "json",
+    })
+    response.raise_for_status()
+    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
+
+    if not found_places:
+        return None
+
+    most_relevant = found_places[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return lon, lat
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders_with_total = Order.objects.with_total_price()
+    yandex_api_key = settings.YANDEX_API_KEY
+
+    orders = (
+        Order.objects
+        .with_total_price()
+        .select_related('restaurant')
+        .prefetch_related(
+            'orderproducts__product'
+        )
+    )
+
+    restaurants = list(Restaurant.objects.all().prefetch_related('menu_items__product'))
+
+    restaurant_products_map = {}
+    for restaurant in restaurants:
+        available_products = set(
+            item.product.name
+            for item in restaurant.menu_items.all()
+            if item.availability
+        )
+        restaurant_products_map[restaurant.id] = available_products
 
     order_items = []
-    for order in orders_with_total:
-        if not order.restaurant:
-            order_products = order.orderproducts.select_related('product')
+
+    for order in orders:
+        order_status = order.get_status_display()
+        order_address = order.address
+
+        if order_status == 'В пути':
+            order_restaurant_info = 'Заказ уже в пути'
+
+        elif not order.restaurant:
+            order_products = order.orderproducts.all()
             product_names = set(p.product.name for p in order_products)
 
-            restaurants = Restaurant.objects.all()
-
             capable_restaurants = []
+
             for restaurant in restaurants:
-                restaurant_products = set(
-                    rp.product.name for rp in restaurant.menu_items.filter(availability=True)
-                )
+                restaurant_products = restaurant_products_map.get(restaurant.id, set())
+
+                distance_from_restaurantorder_from_restaurant = None
+
+                restaurant_address = restaurant.address
+                if restaurant_address and order_address:
+                    restaurant_coordinates = fetch_coordinates(yandex_api_key, restaurant_address)
+                    order_coordinates = fetch_coordinates(yandex_api_key, order_address)
+
+                    if restaurant_coordinates and order_coordinates:
+                        distance_from_restaurantorder_from_restaurant = distance.distance(
+                            restaurant_coordinates,
+                            order_coordinates
+                        ).km
+
                 if product_names.issubset(restaurant_products):
-                    capable_restaurants.append(restaurant.name)
+                    capable_restaurants.append(
+                        (f'{restaurant.name}', distance_from_restaurantorder_from_restaurant)
+                    )
 
-            formatted_capable_restaurants = ', '.join(map(str, capable_restaurants))
+            sorted_capable_restaurants = sorted(
+                capable_restaurants,
+                key=lambda x: x[1] if x[1] is not None else float('inf')
+            )
 
-            order_restaurant_info = f'''Рестораны которые могут приготовить заказ: {formatted_capable_restaurants}'''
+            formatted_capable_restaurants = ', '.join(
+                f"{name} - {dist:.2f} км" if dist is not None else name
+                for name, dist in sorted_capable_restaurants
+            )
+
+            order_restaurant_info = (
+                f'Рестораны которые могут приготовить заказ: '
+                f'<li class="restaurants-marker">{formatted_capable_restaurants}</li>'
+            )
 
         else:
             order_restaurant_info = f"Готовится в: {order.restaurant}"
 
         order_item = {
             'id': order.id,
-            'status': order.get_status_display(),
+            'status': order_status,
             'payment_method': order.get_payment_method_display(),
             'client': f"{order.firstname} {order.lastname}",
             'phonenumber': order.phonenumber,
-            'address': order.address,
+            'address': order_address,
             'order_cost': order.total_price,
             'comment': order.comment_from_manager,
             'restaurant': order_restaurant_info,
@@ -131,6 +204,22 @@ def view_orders(request):
 
         order_items.append(order_item)
 
-    return render(request, template_name='order_items.html', context={
-        'order_items': order_items,
+    status_priority = {
+        'Выполнен': 1,
+        'Необработанный': 2,
+        'Готовится': 3,
+        'В пути': 4
+    }
+
+    filtered_order_items = [
+        item for item in order_items if item['status'] != 'Выполнен'
+    ]
+
+    sorted_order_items = sorted(
+        filtered_order_items,
+        key=lambda x: status_priority.get(x['status'], 999)
+    )
+
+    return render(request, 'order_items.html', {
+        'order_items': sorted_order_items,
     })
