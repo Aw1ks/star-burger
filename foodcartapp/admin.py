@@ -11,6 +11,11 @@ from .models import Order, OrderProducts
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.shortcuts import redirect
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import HttpResponseRedirect
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
@@ -142,3 +147,35 @@ class OrderAdmin(admin.ModelAdmin):
             obj.save()
         formset.save_m2m()
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        next_url = request.GET.get('next', '')
+        if next_url:
+            request.session['order_next_url'] = next_url
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def response_change(self, request, obj):
+        previous_path = request.META.get('HTTP_REFERER', '')
+
+        if '_save' in request.POST:
+            redirect_url = request.session.pop('order_next_url', None)
+            if redirect_url:
+                return HttpResponseRedirect(redirect_url)
+
+            else:
+                if 'order_items.html' in previous_path:
+                    redirect_url = '/manager/orders'
+
+                elif 'admin/' in previous_path:
+                    redirect_url = '/admin/foodcartapp/order/'
+
+                elif url_has_allowed_host_and_scheme(
+                    previous_path, allowed_hosts={request.get_host()}
+                ):
+                    redirect_url = previous_path
+
+                else:
+                    redirect_url = '/admin/foodcartapp/order/'
+
+                return HttpResponseRedirect(redirect_url)
+
+        return super().response_change(request, obj)
