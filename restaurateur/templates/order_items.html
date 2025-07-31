@@ -21,6 +21,7 @@
       <th>Телефон</th>
       <th>Адрес доставки</th>
       <th>Комментарий</th>
+      <th>Ресторан</th>
       <th>Ссылка на админку</th>
     </tr>
 
@@ -34,6 +35,7 @@
         <td>{{ item.phonenumber }}</td>
         <td>{{ item.address }}</td>
         <td>{{ item.comment }}</td>
+        <td>{{ item.restaurant }}</td>
         <td>
           <a href="{% url 'admin:foodcartapp_order_change' item.id %}?next=/manager/orders">
             Редактировать заказ

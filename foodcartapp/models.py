@@ -161,7 +161,7 @@ class Order(models.Model):
 
     ORDER_STATUS = [
         ('U', "Необработанный"),
-        ('S', "Собирается"),
+        ('S', "Готовится"),
         ('D', "В пути"),
         ('V', 'Выполнен')
     ]
@@ -210,6 +210,15 @@ class Order(models.Model):
         choices=PAYMENT_METHODS,
         default='C',
         db_index=True
+    )
+
+    restaurant = models.ForeignKey(
+        Restaurant,
+        verbose_name='Ресторан для заказа',
+        related_name='orders',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
     )
 
     def get_status_display(self):

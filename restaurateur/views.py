@@ -96,24 +96,37 @@ def view_orders(request):
 
     order_items = []
     for order in orders_with_total:
-        order_id = order.id
-        status = order.get_status_display()
-        payment_method = order.get_payment_method_display()
-        client = f"{order.firstname} {order.lastname}"
-        phonenumber = order.phonenumber
-        address = order.address
-        order_cost = order.total_price
-        order_comment = order.comment_from_manager
+        if not order.restaurant:
+            order_products = order.orderproducts.select_related('product')
+            product_names = set(p.product.name for p in order_products)
+
+            restaurants = Restaurant.objects.all()
+
+            capable_restaurants = []
+            for restaurant in restaurants:
+                restaurant_products = set(
+                    rp.product.name for rp in restaurant.menu_items.filter(availability=True)
+                )
+                if product_names.issubset(restaurant_products):
+                    capable_restaurants.append(restaurant.name)
+
+            formatted_capable_restaurants = ', '.join(map(str, capable_restaurants))
+
+            order_restaurant_info = f'''Рестораны которые могут приготовить заказ: {formatted_capable_restaurants}'''
+
+        else:
+            order_restaurant_info = f"Готовится в: {order.restaurant}"
 
         order_item = {
-            'id': order_id,
-            'status': status,
-            'payment_method': payment_method,
-            'client': client,
-            'phonenumber': phonenumber,
-            'address': address,
-            'order_cost': order_cost,
-            'comment': order_comment,
+            'id': order.id,
+            'status': order.get_status_display(),
+            'payment_method': order.get_payment_method_display(),
+            'client': f"{order.firstname} {order.lastname}",
+            'phonenumber': order.phonenumber,
+            'address': order.address,
+            'order_cost': order.total_price,
+            'comment': order.comment_from_manager,
+            'restaurant': order_restaurant_info,
         }
 
         order_items.append(order_item)
