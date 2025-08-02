@@ -1,18 +1,24 @@
 import requests
+import datetime
+import logging
 
 from geopy import distance
+from operator import itemgetter
+from django.core.exceptions import ObjectDoesNotExist
 
 from django import forms
 from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
+from django.utils import timezone
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 
-from foodcartapp.models import Product, Restaurant, Order, OrderProducts
+from foodcartapp.models import Product, Restaurant, Order
+from geoinfostore.models import GeocodingAddresses
 
 
 class Login(forms.Form):
@@ -94,22 +100,123 @@ def view_restaurants(request):
     })
 
 
-def fetch_coordinates(apikey, address):
-    base_url = "https://geocode-maps.yandex.ru/1.x"
-    response = requests.get(base_url, params={
+def get_db_coords(address):
+    try:
+        entry = GeocodingAddresses.objects.get(first_address=address)
+        return (entry.first_address_latitude, entry.first_address_longitude)
+    except ObjectDoesNotExist:
+        pass
+    try:
+        entry = GeocodingAddresses.objects.get(second_address=address)
+        return (entry.second_address_latitude, entry.second_address_longitude)
+    except ObjectDoesNotExist:
+        pass
+    return None
+
+
+def get_geo_objects(apikey, address):
+    response = requests.get("https://geocode-maps.yandex.ru/1.x", params={
         "geocode": address,
         "apikey": apikey,
         "format": "json",
     })
     response.raise_for_status()
-    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
+    data = response.json()
+    feature_members = data.get('response', {}).get('GeoObjectCollection', {}).get('featureMember', [])
+    return feature_members
 
-    if not found_places:
+
+def update_or_create_db(
+        first_address, 
+        second_address, 
+        first_coords, 
+        second_coords, 
+        distance_km
+    ):
+    object, created = GeocodingAddresses.objects.update_or_create(
+        first_address=first_address,
+        second_address=second_address,
+        defaults={
+            'first_address_latitude': first_coords[0],
+            'first_address_longitude': first_coords[1],
+            'second_address_latitude': second_coords[0],
+            'second_address_longitude': second_coords[1],
+            'distance': distance_km,
+            'last_updated': timezone.now()
+        }
+    )
+    return object
+
+
+def distance_calculation(apikey, first_address, second_address):
+
+    def get_distance_by_coords(first_coords, second_coords):
+        return distance.distance(
+            (float(first_coords[0]), float(first_coords[1])),
+            (float(second_coords[0]), float(second_coords[1]))
+        ).km
+
+    def get_coordinates(apikey, address, coords_db):
+        coordinates = coords_db(address)
+
+        if not coordinates:
+            geo_objects = get_geo_objects(apikey, address)
+            if not geo_objects:
+                logging.exception(f'Ошибка при загрузке геообъектов для адреса: {address}')
+                return None
+
+            geo_object = geo_objects[0]['GeoObject']['Point']['pos']
+            lon_str, lat_str = geo_object.split()
+            coordinates = (lat_str, lon_str)
+
+        return coordinates
+
+    update_period = timezone.timedelta(days=7)
+
+    geocoding_addresses = GeocodingAddresses.objects.filter(
+        first_address=first_address,
+        second_address=second_address
+    ).first()
+
+    if geocoding_addresses and (
+        timezone.now() - geocoding_addresses.last_updated
+    ) < update_period:
+        return geocoding_addresses.distance
+
+    first_coords = get_db_coords(first_address)
+    second_coords = get_db_coords(second_address)
+
+    if first_coords and second_coords:
+        distance_km = get_distance_by_coords(first_coords, second_coords)
+        if geocoding_addresses:
+            update_or_create_db(
+                first_address, 
+                second_address, 
+                first_coords, 
+                second_coords, 
+                distance_km
+            )
+        return distance_km
+
+    first_coordinates = get_coordinates(apikey, first_address, first_coords)
+    if first_coordinates is None:
         return None
 
-    most_relevant = found_places[0]
-    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-    return lon, lat
+    second_coordinates = get_coordinates(apikey, second_address, second_coords)
+    if second_coordinates is None:
+        return None
+
+    distance_km = get_distance_by_coords(first_coords, second_coords)
+
+    update_or_create_db(
+        first_address, 
+        second_address, 
+        first_coords, 
+        second_coords, 
+        distance_km
+    )
+
+    return distance_km
 
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
@@ -158,14 +265,11 @@ def view_orders(request):
 
                 restaurant_address = restaurant.address
                 if restaurant_address and order_address:
-                    restaurant_coordinates = fetch_coordinates(yandex_api_key, restaurant_address)
-                    order_coordinates = fetch_coordinates(yandex_api_key, order_address)
-
-                    if restaurant_coordinates and order_coordinates:
-                        distance_from_restaurantorder_from_restaurant = distance.distance(
-                            restaurant_coordinates,
-                            order_coordinates
-                        ).km
+                    distance_from_restaurantorder_from_restaurant = distance_calculation(
+                        yandex_api_key,
+                        restaurant_address,
+                        order_address
+                    )
 
                 if product_names.issubset(restaurant_products):
                     capable_restaurants.append(
@@ -174,13 +278,18 @@ def view_orders(request):
 
             sorted_capable_restaurants = sorted(
                 capable_restaurants,
-                key=lambda x: x[1] if x[1] is not None else float('inf')
+                key=itemgetter(1, 0)
             )
 
-            formatted_capable_restaurants = ', '.join(
-                f"{name} - {dist:.2f} км" if dist is not None else name
-                for name, dist in sorted_capable_restaurants
-            )
+            formatted_capable_restaurants = []
+            for name, dist in sorted_capable_restaurants:
+                if dist is not None:
+                    formatted_capable_restaurants.append(f"{name} - {dist:.2f} км")
+
+                else:
+                    formatted_capable_restaurants.append(name)
+
+            formatted_capable_restaurants = ', '.join(formatted_capable_restaurants)
 
             order_restaurant_info = (
                 f'Рестораны которые могут приготовить заказ: '
