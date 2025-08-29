@@ -12,7 +12,6 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.serializers import ValidationError
 from rest_framework.renderers import JSONRenderer
-from pprint import pprint
 from django.db import transaction
 
 
@@ -70,41 +69,19 @@ def product_list_api(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
-@transaction.atomic 
+@transaction.atomic
 def register_order(request):
-    order_info = request.data
-    pprint(order_info)
+    serializer = OrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
-    serializer = OrderSerializer(data=order_info)
-    if serializer.is_valid():
-        try:
-            order = Order.objects.create(
-                firstname=serializer.validated_data['firstname'],
-                lastname=serializer.validated_data['lastname'],
-                phonenumber=serializer.validated_data['phonenumber'],
-                address=serializer.validated_data['address'],
-            )
+    order = serializer.save() 
+    serialized_info = OrderSerializer(order).data
 
-            order_product_fields = serializer.validated_data['products']
-            order_product = [OrderProducts(order=order, **fields) for fields in order_product_fields]
-            OrderProducts.objects.bulk_create(order_product)
-
-            serialized_info = serializer.data
-            serialized_info['id'] = order.id
-
-            return Response(serialized_info, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            print(f"Error in transaction: {e}")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serialized_info, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
 def model_response_order(request):
-    if request.method == 'GET':
-        order = Order.objects.all()
-        serializer = OrderSerializer(order, many=True)
-        return Response(serializer.data)
+    order = Order.objects.all()
+    serializer = OrderSerializer(order, many=True)
+    return Response(serializer.data)

@@ -119,7 +119,6 @@ class RestaurantMenuItem(models.Model):
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        default=0
     )
 
     class Meta:
@@ -201,7 +200,7 @@ class Order(models.Model):
     PAYMENT_METHODS = [
         ('C', 'Наличными'),
         ('E', 'Электронный'),
-        ('K', 'Катртой'),
+        ('K', 'Картой'),
     ]
 
     payment_method = models.CharField(
@@ -257,7 +256,6 @@ class OrderProducts(models.Model):
         max_digits=8,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        default=0
     )
 
     def __str__(self):
