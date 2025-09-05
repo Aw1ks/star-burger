@@ -178,7 +178,7 @@ def view_orders(request):
             order_restaurant_info = 'Заказ уже в пути'
 
         elif not order.restaurant:
-            order_products = order.orderproducts.all()
+            order_products = order.order_products.all()
             product_names = {p.product.name for p in order_products}
 
             capable_restaurants = []
