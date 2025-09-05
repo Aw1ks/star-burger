@@ -114,12 +114,6 @@ class RestaurantMenuItem(models.Model):
         default=True,
         db_index=True
     )
-    price = models.DecimalField(
-        'цена',
-        max_digits=8,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-    )
 
     class Meta:
         verbose_name = 'пункт меню ресторана'
@@ -130,6 +124,10 @@ class RestaurantMenuItem(models.Model):
 
     def __str__(self):
         return f"{self.restaurant.name} - {self.product.name}"
+
+    @property
+    def price(self):
+        return self.product.price
 
 
 class OrderQuerySet(models.QuerySet):
@@ -164,7 +162,11 @@ class Order(models.Model):
         null=False,
         blank=False
     )
-    phonenumber = PhoneNumberField('Номер телефона', region='RU', db_index=True)
+    phonenumber = PhoneNumberField(
+        'Номер телефона', 
+        region='RU',
+        db_index=True
+    )
     address = models.CharField(
         'Адрес доставки',
         max_length=100,
