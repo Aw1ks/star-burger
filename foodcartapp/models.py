@@ -164,7 +164,7 @@ class Order(models.Model):
         null=False,
         blank=False
     )
-    phonenumber = PhoneNumberField('Номер телефона', region='RU')
+    phonenumber = PhoneNumberField('Номер телефона', region='RU', db_index=True)
     address = models.CharField(
         'Адрес доставки',
         max_length=100,
@@ -204,12 +204,10 @@ class Order(models.Model):
         db_index=True
     )
 
-
     payment_method = models.CharField(
         'Способ оплаты',
         max_length=1,
         choices=PAYMENT_METHODS,
-        default='C',
         db_index=True
     )
 
@@ -240,24 +238,28 @@ class Order(models.Model):
 class OrderProducts(models.Model):
     order = models.ForeignKey(
         Order,
-        on_delete=models.CASCADE,
-        related_name='orderproducts'
+        verbose_name='Заказ',
+        related_name='orderproducts',
+        on_delete=models.CASCADE
     )
     product = models.ForeignKey(
         Product,
+        verbose_name='Продукты для заказа',
+        related_name='order_products',
         on_delete=models.CASCADE
     )
     quantity = models.IntegerField(
+        'Количество',
         validators=[
-            MinValueValidator(0), 
+            MinValueValidator(1), 
             MaxValueValidator(10000)
         ]
     )
     price = models.DecimalField(
-        'цена',
+        'Цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(1)],
     )
 
     def __str__(self):
