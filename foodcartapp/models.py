@@ -235,7 +235,7 @@ class Order(models.Model):
         return dict(self.PAYMENT_METHODS).get(self.payment_method)
 
 
-class OrderProducts(models.Model):
+class OrderProduct(models.Model):
     order = models.ForeignKey(
         Order,
         verbose_name='Заказ',

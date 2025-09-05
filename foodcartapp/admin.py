@@ -7,7 +7,7 @@ from .models import Product
 from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
-from .models import Order, OrderProducts
+from .models import Order, OrderProduct
 
 from django import forms
 from django.core.exceptions import ValidationError
@@ -117,7 +117,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 class OrderProductsForm(forms.ModelForm):
     class Meta:
-        model = OrderProducts
+        model = OrderProduct
         fields = '__all__'
 
     def clean(self):
@@ -133,7 +133,7 @@ class OrderProductsForm(forms.ModelForm):
         return cleaned_info
 
 class OrderProductsInline(admin.TabularInline):
-    model = OrderProducts
+    model = OrderProduct
     extra = 1
     form = OrderProductsForm
 

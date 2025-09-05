@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import Order, OrderProducts
+from .models import Order, OrderProduct
 
 
 class OrderProductsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = OrderProducts
+        model = OrderProduct
         fields = [
             'product', 
             'quantity'
@@ -33,8 +33,8 @@ class OrderSerializer(serializers.ModelSerializer):
         order = Order.objects.create(**validated_data)
 
         order_products = [
-            OrderProducts(order=order, **product) for product in products
+            OrderProduct(order=order, **product) for product in products
         ]
-        OrderProducts.objects.bulk_create(order_products)
+        OrderProduct.objects.bulk_create(order_products)
 
         return order
