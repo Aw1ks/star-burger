@@ -139,6 +139,19 @@ class OrderQuerySet(models.QuerySet):
         )
 
 class Order(models.Model):
+    PAYMENT_METHODS = [
+        ('C', 'Наличными'),
+        ('E', 'Электронный'),
+        ('K', 'Картой'),
+    ]
+    
+    ORDER_STATUS = [
+        ('U', "Необработанный"),
+        ('S', "Готовится"),
+        ('D', "В пути"),
+        ('V', 'Выполнен')
+    ]
+
     firstname = models.CharField(
         'Имя',
         max_length=50,
@@ -158,12 +171,6 @@ class Order(models.Model):
         blank=False,
     )
 
-    ORDER_STATUS = [
-        ('U', "Необработанный"),
-        ('S', "Готовится"),
-        ('D', "В пути"),
-        ('V', 'Выполнен')
-    ]
 
     status = models.CharField(
         'Статус заказа',
@@ -197,11 +204,6 @@ class Order(models.Model):
         db_index=True
     )
 
-    PAYMENT_METHODS = [
-        ('C', 'Наличными'),
-        ('E', 'Электронный'),
-        ('K', 'Картой'),
-    ]
 
     payment_method = models.CharField(
         'Способ оплаты',
@@ -220,19 +222,19 @@ class Order(models.Model):
         blank=True
     )
 
-    def get_status_display(self):
-        return dict(self.ORDER_STATUS).get(self.status)
-
-    def get_payment_method_display(self):
-        return dict(self.PAYMENT_METHODS).get(self.payment_method)
-
     objects = OrderQuerySet.as_manager()
-    
+
     class Meta:
         verbose_name = "Заказ"
 
     def __str__(self):
         return f"{self.firstname} {self.lastname} - {self.address}"
+
+    def get_status_display(self):
+        return dict(self.ORDER_STATUS).get(self.status)
+
+    def get_payment_method_display(self):
+        return dict(self.PAYMENT_METHODS).get(self.payment_method)
 
 
 class OrderProducts(models.Model):
