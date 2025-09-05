@@ -13,6 +13,7 @@ class OrderProductsSerializer(serializers.ModelSerializer):
 
 class OrderSerializer(serializers.ModelSerializer):
     products = OrderProductsSerializer(
+        allow_empty=False,
         many=True, 
         write_only=True
     )
