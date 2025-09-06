@@ -246,7 +246,7 @@ class OrderProduct(models.Model):
     )
     product = models.ForeignKey(
         Product,
-        verbose_name='Продукты для заказа',
+        verbose_name='Продукт для заказа',
         related_name='order_products',
         on_delete=models.CASCADE
     )
