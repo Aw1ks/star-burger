@@ -3,12 +3,11 @@
 from django.db import migrations
 
 
-def replace_null_with_empty_string(apps, schema_editor):
-    ModelName = apps.get_model('foodcartapp', 'Order')
-    db_alias = schema_editor.connection.alias
-
-    ModelName.objects.using(db_alias).filter(firstname__isnull=True).update(firstname='')
-    ModelName.objects.using(db_alias).filter(lastname__isnull=True).update(lastname='')
+def combine_names(apps, schema_editor):
+    Person = apps.get_model('foodcartapp', 'Order')
+    for person in Person.objects.all():
+        person.name = f"{person.first_name} {person.last_name}"
+        person.save()
 
 
 class Migration(migrations.Migration):
@@ -18,5 +17,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(replace_null_with_empty_string),
+        migrations.RunPython(combine_names),
     ]
