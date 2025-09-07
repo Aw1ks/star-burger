@@ -70,7 +70,7 @@ class Product(models.Model):
         'цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(0)]
+        validators=[MinValueValidator(1)]
     )
     image = models.ImageField(
         'картинка'
@@ -118,7 +118,7 @@ class RestaurantMenuItem(models.Model):
         'цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(1)],
     )
 
     class Meta:
@@ -235,7 +235,7 @@ class Order(models.Model):
         return f"{self.firstname} {self.lastname} - {self.address}"
 
 
-class OrderProducts(models.Model):
+class OrderProduct(models.Model):
     order = models.ForeignKey(
         Order,
         on_delete=models.CASCADE,
@@ -246,8 +246,9 @@ class OrderProducts(models.Model):
         on_delete=models.CASCADE
     )
     quantity = models.IntegerField(
+        'количество',
         validators=[
-            MinValueValidator(0), 
+            MinValueValidator(1), 
             MaxValueValidator(10000)
         ]
     )
@@ -255,7 +256,7 @@ class OrderProducts(models.Model):
         'цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(0)],
+        validators=[MinValueValidator(1)],
     )
 
     def __str__(self):

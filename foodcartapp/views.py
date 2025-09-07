@@ -4,7 +4,7 @@ import re
 from django.http import JsonResponse
 from django.templatetags.static import static
 
-from .models import Product, Order, OrderProducts
+from .models import Product, Order, OrderProduct
 from .serializers import OrderSerializer
 
 from rest_framework import generics, permissions, status
