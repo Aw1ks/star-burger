@@ -104,6 +104,7 @@ def view_orders(request):
         .with_total_price()
         .select_related('restaurant')
         .prefetch_related('orderproducts__product')
+        .exclude(status='V')
     )
 
     restaurants = list(
