@@ -1,5 +1,5 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator,0MaxValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models import F, Sum
 from django.utils import timezone
@@ -70,7 +70,7 @@ class Product(models.Model):
         'цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(1)]
+        validators=[MinValueValidator(0)]
     )
     image = models.ImageField(
         'картинка'
@@ -118,7 +118,7 @@ class RestaurantMenuItem(models.Model):
         'цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(1)],
+        validators=[MinValueValidator(0)],
     )
 
     class Meta:
@@ -252,7 +252,7 @@ class OrderProduct(models.Model):
     quantity = models.IntegerField(
         'количество',
         validators=[
-            MinValueValidator(1), 
+            MinValueValidator(0), 
             MaxValueValidator(10000)
         ]
     )
@@ -260,7 +260,7 @@ class OrderProduct(models.Model):
         'цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(1)],
+        validators=[MinValueValidator(0)],
     )
 
     def __str__(self):
