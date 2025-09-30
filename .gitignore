@@ -107,3 +107,4 @@ cython_debug/
 
 media/
 node_modules/
+parcel-cache/
