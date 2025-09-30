@@ -1,4 +1,5 @@
 import requests
+import logging
 
 from geopy import distance
 
