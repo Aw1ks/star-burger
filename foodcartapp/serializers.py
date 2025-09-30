@@ -8,7 +8,7 @@ class OrderProductsSerializer(serializers.ModelSerializer):
         read_only_fields = ['price']
 
 class OrderSerializer(serializers.ModelSerializer):
-    products = OrderProductsSerializer(many=True, write_only=True)
+    products = OrderProductsSerializer(many=True, write_only=True, allow_empty=False)
 
     class Meta:
         model = Order
