@@ -140,6 +140,7 @@ class OrderQuerySet(models.QuerySet):
 
 class Order(models.Model):
     PAYMENT_METHODS = [
+        ('N', 'Не выбран'),
         ('C', 'Наличными'),
         ('E', 'Электронный'),
         ('K', 'Картой'),
@@ -211,7 +212,7 @@ class Order(models.Model):
         'Способ оплаты',
         max_length=1,
         choices=PAYMENT_METHODS,
-        default='C',
+        default='N',
         db_index=True
     )
 
