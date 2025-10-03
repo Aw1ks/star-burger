@@ -9,7 +9,6 @@ from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
-from django.conf import settings
 
 from foodcartapp.models import Product, Restaurant, Order
 from geoinfostore.views import get_geo_objects, get_or_create_address, distance_calculation
@@ -97,8 +96,6 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    yandex_api_key = settings.YANDEX_API_KEY
-
     orders = (
         Order.objects
         .with_total_price()
@@ -145,7 +142,6 @@ def view_orders(request):
 
                 if restaurant_address and order_address:
                     distance_from_restaurant = distance_calculation(
-                        yandex_api_key,
                         restaurant_address,
                         order_address
                     )

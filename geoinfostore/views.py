@@ -4,6 +4,7 @@ import logging
 from geopy import distance
 
 from django.shortcuts import render
+from django.conf import settings
 from .models import Address
 
 
@@ -38,8 +39,10 @@ def get_or_create_address(apikey, address):
     return (obj.latitude, obj.longitude)
 
 
-def distance_calculation(apikey, first_address, second_address):
+def distance_calculation(first_address, second_address):
     """Считает расстояние между двумя адресами в км"""
+    apikey = settings.YANDEX_API_KEY
+
     first_coords = get_or_create_address(apikey, first_address)
     if not first_coords:
         return None
