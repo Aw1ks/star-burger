@@ -126,6 +126,8 @@ def view_orders(request):
         order_status = order.get_status_display()
         order_address = order.address
 
+        order_restaurant_info = ''
+
         if order_status == 'В пути':
             order_restaurant_info = 'Заказ уже в пути'
 
@@ -148,29 +150,35 @@ def view_orders(request):
                         order_address
                     )
 
+                    if distance_from_restaurant is None:
+                        break
+
                 if product_names.issubset(restaurant_products):
                     capable_restaurants.append(
                         (restaurant.name, distance_from_restaurant)
                     )
 
-            sorted_capable_restaurants = sorted(
-                capable_restaurants,
-                key=itemgetter(1, 0)
-            )
+            if capable_restaurants:
+                sorted_capable_restaurants = sorted(
+                    capable_restaurants,
+                    key=itemgetter(1, 0)
+                )
 
-            formatted_capable_restaurants = []
-            for name, dist in sorted_capable_restaurants:
-                if dist is not None:
-                    formatted_capable_restaurants.append(f"{name} - {dist:.2f} км")
-                else:
-                    formatted_capable_restaurants.append(name)
+                formatted_capable_restaurants = []
+                for name, dist in sorted_capable_restaurants:
+                    if dist is not None:
+                        formatted_capable_restaurants.append(f"{name} - {dist:.2f} км")
+                    else:
+                        formatted_capable_restaurants.append(name)
 
-            formatted_capable_restaurants = ', '.join(formatted_capable_restaurants)
+                formatted_capable_restaurants = ', '.join(formatted_capable_restaurants)
 
-            order_restaurant_info = (
-                f'Рестораны которые могут приготовить заказ: '
-                f'<li class="restaurants-marker">{formatted_capable_restaurants}</li>'
-            )
+                order_restaurant_info = (
+                    f'Рестораны которые могут приготовить заказ: '
+                    f'<li class="restaurants-marker">{formatted_capable_restaurants}</li>'
+                )
+            else:
+                order_restaurant_info = 'Неправильно введен адрес со стороны пользователя'
 
         else:
             order_restaurant_info = f"Готовится в: {order.restaurant}"
