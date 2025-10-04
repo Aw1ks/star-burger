@@ -2,6 +2,7 @@ import requests
 import logging
 
 from geopy import distance
+from functools import lru_cache
 
 from django.shortcuts import render
 from django.conf import settings
@@ -21,6 +22,7 @@ def get_geo_objects(apikey, address):
     return feature_members
 
 
+@lru_cache(maxsize=120)
 def get_or_create_address(apikey, address):
     """Возвращает координаты адреса (берёт из БД или запрашивает у API)"""
     obj, created = Address.objects.get_or_create(raw_address=address)
