@@ -94,8 +94,7 @@ def view_restaurants(request):
     })
 
 
-@user_passes_test(is_manager, login_url='restaurateur:login')
-def view_orders(request):
+def get_orders_and_restaurants():
     orders = (
         Order.objects
         .with_total_price()
@@ -117,75 +116,91 @@ def view_orders(request):
         }
         restaurant_products_map[restaurant.id] = available_products
 
+    return orders, restaurants, restaurant_products_map
+
+
+def format_restaurants(sorted_capable_restaurants):
+    formatted_list = []
+    for name, dist in sorted_capable_restaurants:
+        if dist is not None:
+            formatted_list.append(f"{name} - {dist:.2f} км")
+        else:
+            formatted_list.append(name)
+    
+    return ', '.join(formatted_list)
+
+
+def get_order_restaurant_info(order, restaurants, restaurant_products_map):
+    order_status = order.get_status_display()
+    order_address = order.address
+
+    order_restaurant_info = ''
+
+    if order_status == 'В пути':
+        order_restaurant_info = 'Заказ уже в пути'
+
+    elif not order.restaurant:
+        order_products = order.orderproducts.all()
+        product_names = {p.product.name for p in order_products}
+
+        capable_restaurants = []
+
+        for restaurant in restaurants:
+            restaurant_products = restaurant_products_map.get(restaurant.id, set())
+
+            distance_from_restaurant = None
+            restaurant_address = restaurant.address
+
+            if restaurant_address and order_address:
+                distance_from_restaurant = distance_calculation(
+                    restaurant_address,
+                    order_address
+                )
+
+                if distance_from_restaurant is None:
+                    break
+
+            if product_names.issubset(restaurant_products):
+                capable_restaurants.append(
+                    (restaurant.name, distance_from_restaurant)
+                )
+
+        if capable_restaurants:
+            sorted_capable_restaurants = sorted(
+                capable_restaurants,
+                key=itemgetter(1, 0)
+            )
+
+            formatted_capable_restaurants = format_restaurants(sorted_capable_restaurants)
+
+            order_restaurant_info = (
+                f'Рестораны которые могут приготовить заказ: '
+                f'<li class="restaurants-marker">{formatted_capable_restaurants}</li>'
+            )
+        else:
+            order_restaurant_info = 'Неправильно введен адрес со стороны пользователя'
+
+    else:
+        order_restaurant_info = f"Готовится в: {order.restaurant}"
+
+    return order_restaurant_info
+
+
+def build_order_items(orders, restaurants, restaurant_products_map):
     order_items = []
 
     for order in orders:
-        order_status = order.get_status_display()
-        order_address = order.address
-
-        order_restaurant_info = ''
-
-        if order_status == 'В пути':
-            order_restaurant_info = 'Заказ уже в пути'
-
-        elif not order.restaurant:
-            order_products = order.orderproducts.all()
-            product_names = {p.product.name for p in order_products}
-
-            capable_restaurants = []
-
-            for restaurant in restaurants:
-                restaurant_products = restaurant_products_map.get(restaurant.id, set())
-
-                distance_from_restaurant = None
-                restaurant_address = restaurant.address
-
-                if restaurant_address and order_address:
-                    distance_from_restaurant = distance_calculation(
-                        restaurant_address,
-                        order_address
-                    )
-
-                    if distance_from_restaurant is None:
-                        break
-
-                if product_names.issubset(restaurant_products):
-                    capable_restaurants.append(
-                        (restaurant.name, distance_from_restaurant)
-                    )
-
-            if capable_restaurants:
-                sorted_capable_restaurants = sorted(
-                    capable_restaurants,
-                    key=itemgetter(1, 0)
-                )
-
-                formatted_capable_restaurants = []
-                for name, dist in sorted_capable_restaurants:
-                    if dist is not None:
-                        formatted_capable_restaurants.append(f"{name} - {dist:.2f} км")
-                    else:
-                        formatted_capable_restaurants.append(name)
-
-                formatted_capable_restaurants = ', '.join(formatted_capable_restaurants)
-
-                order_restaurant_info = (
-                    f'Рестораны которые могут приготовить заказ: '
-                    f'<li class="restaurants-marker">{formatted_capable_restaurants}</li>'
-                )
-            else:
-                order_restaurant_info = 'Неправильно введен адрес со стороны пользователя'
-
-        else:
-            order_restaurant_info = f"Готовится в: {order.restaurant}"
+        order_restaurant_info = get_order_restaurant_info(
+            order, restaurants, restaurant_products_map
+        )
 
         order_item = {
             'id': order.id,
-            'status': order_status,
+            'status': order.get_status_display(),
             'payment_method': order.get_payment_method_display(),
             'client': f"{order.firstname} {order.lastname}",
             'phonenumber': order.phonenumber,
-            'address': order_address,
+            'address': order.address,
             'order_cost': order.total_price,
             'comment': order.comment_from_manager,
             'restaurant': order_restaurant_info,
@@ -193,6 +208,10 @@ def view_orders(request):
 
         order_items.append(order_item)
 
+    return order_items
+
+
+def filter_and_sort_orders(order_items):
     status_priority = {
         'Выполнен': 1,
         'Необработанный': 2,
@@ -208,6 +227,17 @@ def view_orders(request):
         filtered_order_items,
         key=lambda x: status_priority.get(x['status'], 999)
     )
+
+    return sorted_order_items
+
+
+@user_passes_test(is_manager, login_url='restaurateur:login')
+def view_orders(request):
+    orders, restaurants, restaurant_products_map = get_orders_and_restaurants()
+
+    order_items = build_order_items(orders, restaurants, restaurant_products_map)
+
+    sorted_order_items = filter_and_sort_orders(order_items)
 
     return render(request, 'order_items.html', {
         'order_items': sorted_order_items,
